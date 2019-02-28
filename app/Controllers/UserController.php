@@ -84,6 +84,7 @@ class UserController extends BaseController
         return $this->view()
             ->assign('ssr_sub_token', $ssr_sub_token)
             ->assign('display_ios_class',Config::get('display_ios_class'))
+            ->assign('display_ios_topup',Config::get('display_ios_topup'))
             ->assign('ios_account',Config::get('ios_account'))
             ->assign('ios_password',Config::get('ios_password'))
             ->assign('ann', $Ann)
@@ -1654,6 +1655,11 @@ class UserController extends BaseController
         $res['msg'] = sprintf("获得了 %d MB流量.", $traffic);
         $res['unflowtraffic'] = $this->user->transfer_enable;
         $res['traffic'] = Tools::flowAutoShow($this->user->transfer_enable);
+        $res['trafficInfo'] = array(
+            "todayUsedTraffic" => $this->user->TodayusedTraffic(),
+            "lastUsedTraffic" => $this->user->LastusedTraffic(),
+            "unUsedTraffic" => $this->user->unusedTraffic(),
+        );
         $res['ret'] = 1;
         return $this->echoJson($response, $res);
     }
