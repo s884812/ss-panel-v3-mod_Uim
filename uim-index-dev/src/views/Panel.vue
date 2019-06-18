@@ -77,7 +77,7 @@
                   <span>订阅链接</span>
                   <span class="link-reset relative flex justify-center text-center">
                     <button @click="showToolTip('resetConfirm')" class="tips tips-red">
-                      <font-awesome-icon icon="sync-alt" />&nbsp;重置链接
+                      <font-awesome-icon icon="sync-alt"/>&nbsp;重置链接
                     </button>
                     <uim-tooltip
                       v-show="toolTips.resetConfirm"
@@ -87,10 +87,10 @@
                         <span>确定要重置订阅链接？</span>
                         <div>
                           <button @click="resetSubscribLink" class="tips tips-green">
-                            <font-awesome-icon icon="check" fixed-width />
+                            <font-awesome-icon icon="check" fixed-width/>
                           </button>
                           <button @click="hideToolTip('resetConfirm')" class="tips tips-red">
-                            <font-awesome-icon icon="times" fixed-width />
+                            <font-awesome-icon icon="times" fixed-width/>
                           </button>
                         </div>
                       </template>
@@ -100,7 +100,7 @@
                 <transition name="rotate-fade" mode="out-in">
                   <div class="input-copy" :key="typeToken.subKey">
                     <div class="pure-g align-center relative">
-                      <span class="pure-u-6-24">{{currentDlType === 'SSR' ? '普通端口:' : '订阅链接:'}}</span>
+                      <span class="pure-u-6-24">{{ssrlinkTitle}}</span>
                       <span class="pure-u-18-24 pure-g relative flex justify-center text-center">
                         <input
                           v-uimclip="{ onSuccess:successCopied }"
@@ -187,7 +187,7 @@
           </div>
           <div class="user-btngroup pure-g">
             <div class="pure-u-1-2 btngroup-left">
-              <uim-dropdown>
+              <uim-dropdown show-arrow>
                 <template #dpbtn-content>
                   <transition name="fade" mode="out-in">
                     <div :key="currentCardComponent">{{menuOptions[currentCardComponentIndex].name}}</div>
@@ -215,7 +215,6 @@
               :is="currentCardComponent"
               v-on:resourseTransTrigger="showTransition('userResourseTrans')"
               :baseURL="baseUrl"
-              :annC="ann"
               class="card margin-nobottom"
             >
               <button
@@ -265,16 +264,32 @@ export default {
   },
   props: ["routermsg"],
   computed: {
+    ssrlinkTitle: function() {
+      if (this.mergeSub === "true") {
+        return "订阅链接:";
+      } else {
+        if (this.currentDlType === "SSR") {
+          return "普通端口:";
+        } else {
+          return "订阅链接:";
+        }
+      }
+    },
     typeToken: function() {
       switch (this.currentDlType) {
-        case "SSR":
+        case "SSR": {
+          let url = this.suburlBase;
+          if (this.mergeSub !== "true") {
+            url = this.suburlMu0;
+          }
           return {
             tagkey: "dl-ssr",
             subKey: "sub-ssr",
             arrIndex: 0,
             muType: "mu0",
-            subUrl: this.suburlMu0
+            subUrl: url
           };
+        }
         case "SS/SSD":
           return {
             tagkey: "dl-ss",
@@ -311,14 +326,6 @@ export default {
   data: function() {
     return {
       userLoadState: "beforeload",
-      ann: {
-        content: "",
-        date: "",
-        id: "",
-        markdown: ""
-      },
-      baseUrl: "",
-      mergeSub: "false",
       toolTips: {
         mu0: false,
         mu1: false,
@@ -415,15 +422,19 @@ export default {
     },
     resetSubscribLink() {
       _get("/getnewsubtoken", "include").then(r => {
-        this.ssrSubToken = r.arr.ssr_sub_token;
-        this.hideToolTip("resetConfirm");
-        this.showTransition("subLinkTrans");
-        let callConfig = {
-          msg: "已重置您的订阅链接，请变更或添加您的订阅链接！",
-          icon: "bell",
-          time: 1500
-        };
-        this.callMsgr(callConfig);
+        if (r.ret === 1) {
+          this.ssrSubToken = r.arr.ssr_sub_token;
+          this.hideToolTip("resetConfirm");
+          this.showTransition("subLinkTrans");
+          let callConfig = {
+            msg: "已重置您的订阅链接，请变更或添加您的订阅链接！",
+            icon: "bell",
+            time: 1500
+          };
+          this.callMsgr(callConfig);
+        } else if (r.ret === -1) {
+          this.ajaxNotLogin();
+        }
       });
     },
     scrollPage(token) {
@@ -444,7 +455,6 @@ export default {
         resolve();
       });
       promise.then(r => {
-        window.console.log(r);
         setTimeout(() => {
           this.setSignSet({ isSignShow: true });
         }, 500);
@@ -455,33 +465,40 @@ export default {
     let self = this;
     this.userLoadState = "loading";
 
-    _get("/getuserinfo", "include")
-      .then(r => {
-        if (r.ret === 1) {
-          window.console.log(r.info);
-          this.setUserCon(r.info.user);
-          this.setUserSettings(this.userCon);
-          window.console.log(this.userCon);
-          if (r.info.ann) {
-            this.ann = r.info.ann;
+    if (this.userCon === "") {
+      _get("/getuserinfo", "include")
+        .then(r => {
+          if (r.ret === 1) {
+            window.console.log(r.info);
+            this.setUserCon(r.info.user);
+            this.setUserSettings(this.userCon);
+            window.console.log(this.userCon);
+            if (r.info.ann) {
+              this.setAnn(r.info.ann);
+            }
+            this.setAllBaseCon({
+              subUrl: r.info.subUrl,
+              ssrSubToken: r.info.ssrSubToken,
+              iosAccount: r.info.iosAccount,
+              iosPassword: r.info.iosPassword,
+              displayIosClass: r.info.displayIosClass
+            });
+            this.setBaseUrl(r.info.baseUrl);
+            this.setMergeSub(r.info.mergeSub);
+          } else if (r.ret === -1) {
+            this.ajaxNotLogin();
           }
-          this.setAllBaseCon({
-            subUrl: r.info.subUrl,
-            ssrSubToken: r.info.ssrSubToken,
-            iosAccount: r.info.iosAccount,
-            iosPassword: r.info.iosPassword,
-            displayIosClass: r.info.displayIosClass
-          });
-          this.baseUrl = r.info.baseUrl;
-          this.mergeSub = r.info.mergeSub;
-        }
-      })
-      .then(r => {
-        setTimeout(() => {
-          self.userLoadState = "loaded";
-          this.showSigner();
-        }, 1000);
-      });
+        })
+        .then(r => {
+          setTimeout(() => {
+            self.userLoadState = "loaded";
+            this.showSigner();
+          }, 500);
+        });
+    } else {
+      self.userLoadState = "loaded";
+      this.showSigner();
+    }
   },
   beforeRouteLeave(to, from, next) {
     if (
